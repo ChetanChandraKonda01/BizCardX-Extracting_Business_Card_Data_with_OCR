@@ -8,33 +8,42 @@ import cv2
 import os
 import matplotlib.pyplot as plt
 import re
+import ssl
+import urllib.request
+
+from pathlib import Path
+
+# Disable SSL certificate verification
+ssl._create_default_https_context = ssl._create_unverified_context
 
 # SETTING PAGE CONFIGURATIONS
-icon = Image.open("icon.png")
-st.set_page_config(page_title= "BizCardX: Extracting Business Card Data with OCR | By chetan reddy konda",
-                   page_icon= icon,
-                   layout= "wide",
-                   initial_sidebar_state= "expanded",
-                   menu_items={'About': """# This OCR app is created by *chetan reddy konda*!"""})
+icon = Image.open("/Users/chetanreddykonda/Desktop/BIX/businesscard.png")
+st.set_page_config(page_title="BizCardX: Extracting Business Card Data with OCR | By Chetan Chandra Konda",
+                   page_icon=icon,
+                   layout="wide",
+                   initial_sidebar_state="expanded",
+                   menu_items={'About': """# This OCR app is created by *Chetan Chandra Konda*!"""})
 st.markdown("<h1 style='text-align: center; color: white;'>BizCardX: Extracting Business Card Data with OCR</h1>", unsafe_allow_html=True)
 
 # SETTING-UP BACKGROUND IMAGE
 def setting_bg():
     st.markdown(f""" <style>.stApp {{
-                        background: url("https://cutewallpaper.org/22/plane-colour-background-wallpapers/189265759.jpg");
+                        background:"/Users/chetanreddykonda/Desktop/BIX/home.jpg" );
                         background-size: cover}}
                      </style>""",unsafe_allow_html=True) 
 setting_bg()
 
 # CREATING OPTION MENU
-selected = option_menu(None, ["Home","Upload & Extract","Modify"], 
-                       icons=["house","cloud-upload","pencil-square"],
+selected = option_menu(None,["Home","Upload & Extract","Modify"], 
+                       icons=["home","cloud-upload-alt","edit"],
                        default_index=0,
                        orientation="horizontal",
-                       styles={"nav-link": {"font-size": "35px", "text-align": "centre", "margin": "0px", "--hover-color": "#6495ED"},
-                               "icon": {"font-size": "35px"},
-                               "container" : {"max-width": "6000px"},
-                               "nav-link-selected": {"background-color": "#6495ED"}})
+                       styles={"nav-link": {"font-size": "25px", "text-align": "centre", "margin": "0px", "--hover-color": "#AB63FA", "transition": "color 0.3s ease, background-color 0.3s ease"},
+                               "icon": {"font-size": "25px"},
+                               "container" : {"max-width": "6000px", "padding": "10px", "border-radius": "5px"},
+                               "nav-link-selected": {"background-color": "#AB63FA", "color": "white"}})
+
+
 
 # INITIALIZING THE EasyOCR READER
 reader = easyocr.Reader(['en'])
@@ -42,10 +51,11 @@ reader = easyocr.Reader(['en'])
 # CONNECTING WITH MYSQL DATABASE
 mydb = sql.connect(host="localhost",
                    user="root",
-                   password="your password",
+                   password="123456789",
                    database= "bizcardx_db"
                   )
 mycursor = mydb.cursor(buffered=True)
+#mycursor.execute("create database bizcardx_db")
 
 # TABLE CREATION
 mycursor.execute('''CREATE TABLE IF NOT EXISTS card_data
@@ -70,21 +80,22 @@ if selected == "Home":
         st.markdown("## :green[**Technologies Used :**] Python,easy OCR, Streamlit, SQL, Pandas")
         st.markdown("## :green[**Overview :**] In this streamlit web app you can upload an image of a business card and extract relevant information from it using easyOCR. You can view, modify or delete the extracted data in this app. This app would also allow users to save the extracted information into a database along with the uploaded business card image. The database would be able to store multiple entries, each with its own business card image and extracted information.")
     with col2:
-        st.image("home.png")
+        st.image("/Users/chetanreddykonda/Desktop/BIX/home.jpg")
         
-        
+
 # UPLOAD AND EXTRACT MENU
 if selected == "Upload & Extract":
     st.markdown("### Upload a Business Card")
     uploaded_card = st.file_uploader("upload here",label_visibility="collapsed",type=["png","jpeg","jpg"])
         
     if uploaded_card is not None:
-        
+        if not os.path.exists("uploaded_cards"):
+          os.makedirs("uploaded_cards")
         def save_card(uploaded_card):
             with open(os.path.join("uploaded_cards",uploaded_card.name), "wb") as f:
                 f.write(uploaded_card.getbuffer())   
         save_card(uploaded_card)
-        
+
         def image_preview(image,res): 
             for (bbox, text, prob) in res: 
               # unpack the bounding box
@@ -113,7 +124,7 @@ if selected == "Upload & Extract":
             st.markdown("#     ")
             with st.spinner("Please wait processing image..."):
                 st.set_option('deprecation.showPyplotGlobalUse', False)
-                saved_img = os.getcwd()+ "\\" + "uploaded_cards"+ "\\"+ uploaded_card.name
+                saved_img = os.path.join(os.getcwd(), "uploaded_cards", uploaded_card.name)
                 image = cv2.imread(saved_img)
                 res = reader.readtext(saved_img)
                 st.markdown("### Image Processed and Data Extracted")
@@ -121,7 +132,7 @@ if selected == "Upload & Extract":
                 
             
         #easy OCR
-        saved_img = os.getcwd()+ "\\" + "uploaded_cards"+ "\\"+ uploaded_card.name
+        saved_img = os.path.join(os.getcwd(), "uploaded_cards", uploaded_card.name)
         result = reader.readtext(saved_img,detail = 0,paragraph=False)
         
         # CONVERTING IMAGE TO BINARY TO UPLOAD TO SQL DATABASE
@@ -284,3 +295,4 @@ if selected == "Modify":
         mycursor.execute("select company_name,card_holder,designation,mobile_number,email,website,area,city,state,pin_code from card_data")
         updated_df = pd.DataFrame(mycursor.fetchall(),columns=["Company_Name","Card_Holder","Designation","Mobile_Number","Email","Website","Area","City","State","Pin_Code"])
         st.write(updated_df)
+
